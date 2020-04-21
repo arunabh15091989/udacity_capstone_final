@@ -1,128 +1,86 @@
-import base64
-import logging
-import io
+# Udacity Deep Learning Nanodegree
+# Project: Dog Breed Classifier
+# June 2018
+
+from model import dog_identification as model
+from flask import Flask, url_for, request, render_template, flash, redirect
+from werkzeug import secure_filename
 import os
+import pdb
 
-from flask import Flask, render_template, request
-from load import init_model
-from PIL import Image
-from util import decode_prob
+# python dog-project.py
 
-logger = logging.getLogger("dog_breed_classifier")
-logger.setLevel(logging.DEBUG)
+# export FLASK_DEBUG=0
+# export FLASK_ENV=development
+# export FLASK_APP=dog-project.py
+# flask run --no-reload
+
+# Virtual Environment
+# python3 -m virtualenv env
+# source env/bin/activate
+# which python
+# deactivate
+
+IMG_FOLDER = 'static/img/'
+
+m = model.DogIdentification()
+m.build()
 
 app = Flask(__name__)
+app.config['IMG_FOLDER'] = IMG_FOLDER
 
-# Initialize
-MODEL_DIR = os.path.abspath("./models")
+def _get_img_path(image):
+    return os.path.join(app.config['IMG_FOLDER'], image)
 
-RESNET_CONFIG = {'arch':
-                 os.path.join(MODEL_DIR,
-                              'model.Resnet50.json'),
-                 'weights':
-                 os.path.join(MODEL_DIR,
-                              'weights.Resnet50.hdf5')}
+def _get_ref_img_path(ref):
+    if len(ref.split()) > 1:
+        ref = ref.replace(' ', '_')
+    #ref = ref.replace('%5C','')
+    return os.path.join('img/ref/', ref + '.jpg')
 
-INCEPTION_CONFIG = {'arch':
-                    os.path.join(MODEL_DIR,
-                                 'model.inceptionv3.json'),
-                    'weights':
-                    os.path.join(MODEL_DIR,
-                                 'weights.inceptionv3.h5')}
-
-MODELS = {'resnet': RESNET_CONFIG,
-          'inception': INCEPTION_CONFIG}
-
-
-@app.route('/index')
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template('settings.html')
+    if request.method == 'POST':
+        if 'image' not in request.files:
+            flash('No file part')
+            return redirect(request.url)
 
+        file = request.files['image']
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+        # http://flask.pocoo.org/docs/1.0/patterns/fileuploads/#uploading-files
+        # save file in temp folder
+        # redirect to result page
+        filename = secure_filename(file.filename)
+        file.save(_get_img_path(filename))
+        return redirect(url_for('result', image=filename))
 
-@app.route('/settings', methods=['GET', 'POST'])
-def settings():
-    """Select Model Architecture and Initialize
-    """
-    global model, graph, preprocess
+    return render_template('index.html')
 
-    # grab model selected
-    model_name = request.form['model']
-    config = MODELS[model_name]
+@app.route('/delete/<image>')
+def delete(image):
+    # call to delete selected
+    if request.method == 'POST':
+        to_delete = _get_img_path(image)
 
-    # init the model with pre-trained architecture and weights
-    model, graph = init_model(config['arch'], config['weights'])
+@app.route('/result/<image>')
+def result(image):
+    # check if file exists in img folder
+    # process file
+    # render result template
+    # ajax call to delete file?
+    code, description, predictions = m.process(image=_get_img_path(image))
 
-    # use the proper preprocessing method
-    if model_name == 'inception':
-        from util import preprocess_inception
-        preprocess = preprocess_inception
-    else:
-        from util import preprocess_resnet
-        preprocess = preprocess_resnet
+    if code == model.ProcessCode.HUMAN_FACE:
+        info = 'human_face'
+    elif code == model.ProcessCode.NEITHER:
+        info = 'neither'
+    elif code == model.ProcessCode.DOG:
+        info = 'dog'
 
-    return render_template('select_files.html', model_name=model_name)
-
-
-@app.route('/predict', methods=['GET', 'POST'])
-def predict():
-    """File selection and display results
-    """
-
-    if request.method == 'POST' and 'file[]' in request.files:
-        inputs = []
-        files = request.files.getlist('file[]')
-        for file_obj in files:
-            # Check if no files uploaded
-            if file_obj.filename == '':
-                if len(files) == 1:
-                    return render_template('select_files.html')
-                continue
-            entry = {}
-            entry.update({'filename': file_obj.filename})
-            try:
-                img_bytes = io.BytesIO(file_obj.stream.getvalue())
-                entry.update({'data':
-                              Image.open(
-                                  img_bytes
-                              )})
-            except AttributeError:
-                img_bytes = io.BytesIO(file_obj.stream.read())
-                entry.update({'data':
-                              Image.open(
-                                  img_bytes
-                              )})
-            # keep image in base64 for later use
-            img_b64 = base64.b64encode(img_bytes.getvalue()).decode()
-            entry.update({'img': img_b64})
-
-            inputs.append(entry)
-
-        outputs = []
-
-        with graph.as_default():
-            for input_ in inputs:
-                # convert to 4D tensor to feed into our model
-                x = preprocess(input_['data'])
-                # perform prediction
-                out = model.predict(x)
-                outputs.append(out)
-
-        # decode output prob
-        outputs = decode_prob(outputs)
-
-        results = []
-
-        for input_, probs in zip(inputs, outputs):
-            results.append({'filename': input_['filename'],
-                            'image': input_['img'],
-                            'predict_probs': probs})
-
-        return render_template('results.html', results=results)
-
-    # if no files uploaded
-    return render_template('select_files.html')
-
+    return render_template('result.html', info=info, predictions=predictions,
+    img_file = os.path.join('img/', image), img_ref_file=_get_ref_img_path(predictions['breeds'][0]))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
