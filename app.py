@@ -1,6 +1,6 @@
-# Udacity Deep Learning Nanodegree
+# Udacity Data Science Nanodegree
 # Project: Dog Breed Classifier
-# June 2018
+# March 2020
 
 from model import dog_identification as model
 from flask import Flask, url_for, request, render_template, flash, redirect
