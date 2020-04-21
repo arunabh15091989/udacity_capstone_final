@@ -28,5 +28,4 @@ Along with exploring state-of-the-art CNN models for classification, you will ma
 		python app.py
 	```
 4. Browse to http://localhost:5000
-5. Select Model To Use
-6. Upload Image files
+5. Upload Image files
