@@ -8,18 +8,6 @@ from werkzeug import secure_filename
 import os
 import pdb
 
-# python dog-project.py
-
-# export FLASK_DEBUG=0
-# export FLASK_ENV=development
-# export FLASK_APP=dog-project.py
-# flask run --no-reload
-
-# Virtual Environment
-# python3 -m virtualenv env
-# source env/bin/activate
-# which python
-# deactivate
 
 IMG_FOLDER = 'static/img/'
 
