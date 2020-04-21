@@ -1,6 +1,6 @@
 [//]: # (Image References)
 
-[image1]: ./img/ref/Anatolian_shepherd_dog "Sample Output"
+[image1]: ./static/img/ref/Anatolian_shepherd_dog "Sample Output"
 
 ## Project Overview
 
